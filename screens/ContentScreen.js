@@ -7,6 +7,8 @@ import {
   Linking,
   TextInput,
   Alert,
+  Modal,
+  Share,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dimensions } from 'react-native';
@@ -46,6 +48,9 @@ export default function ContentScreen() {
   const [recNote, setRecNote] = useState('');
   const [thanks, setThanks] = useState(false);
   const [showRecommend, setShowRecommend] = useState(false);
+
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -91,6 +96,23 @@ export default function ContentScreen() {
     }
   };
 
+  // Handle share
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `🔥 I'm on a ${streak}-day reading streak on ReadStreak!\nYou've read ${readCount} times this week.\n\nBuild your reading habit: readstreak.app`,
+        title: `🔥 ${streak}-Day Reading Streak!`,
+      });
+    } catch (e) {
+      Alert.alert('Error', 'Could not open share dialog.');
+    }
+  };
+
+  // Handle save
+  const handleSave = () => {
+    Alert.alert('Save Streak Card 📸', 'Take a screenshot to save your streak card!');
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.date}>Today's Read – {getFormattedDate()}</Text>
@@ -119,6 +141,14 @@ export default function ContentScreen() {
           <Text style={styles.streakText}>{streak} day streak</Text>
         </View>
         <Text style={styles.counter}>You've read {readCount} times this week</Text>
+
+        {/* Share Your Streak Button */}
+        <TouchableOpacity
+          style={styles.shareStreakButton}
+          onPress={() => setShowShareModal(true)}
+        >
+          <Text style={styles.shareStreakButtonText}>Share your streak 📤</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Recommend Section */}
@@ -171,6 +201,55 @@ export default function ContentScreen() {
           </>
         )}
       </View>
+
+      {/* Share Modal */}
+      <Modal
+        visible={showShareModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+
+            {/* Share Card Preview */}
+            <View style={styles.shareCard}>
+              <Text style={styles.shareCardBrand}>🔥 ReadStreak</Text>
+              <View style={styles.shareCardDivider} />
+              <Text style={styles.shareCardStreak}>🔥 {streak}-DAY STREAK 🔥</Text>
+              <Text style={styles.shareCardTagline}>You've built a reading habit!</Text>
+              <View style={styles.shareCardDivider} />
+              <Text style={styles.shareCardCount}>You've read {readCount} times this week</Text>
+              <View style={styles.shareCardSpacer} />
+              <Text style={styles.shareCardUrl}>readstreak.app</Text>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.shareButton}
+                onPress={handleShare}
+              >
+                <Text style={styles.shareButtonText}>📤 Share</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSave}
+              >
+                <Text style={styles.saveButtonText}>⬇️ Save</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowShareModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -216,6 +295,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  shareStreakButton: {
+    marginTop: 12,
+    backgroundColor: '#e67e22',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    alignItems: 'center',
+    shadowColor: '#e67e22',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  shareStreakButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
   articlesList: {
     marginTop: 10,
@@ -311,5 +409,122 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(62, 44, 19, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContainer: {
+    backgroundColor: '#f9f6f1',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+    shadowColor: '#3e2c13',
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+  },
+
+  // Share Card
+  shareCard: {
+    width: '100%',
+    backgroundColor: '#fff8ee',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e67e22',
+    marginBottom: 20,
+  },
+  shareCardBrand: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#e67e22',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  shareCardDivider: {
+    width: '80%',
+    height: 1,
+    backgroundColor: '#f0d9b5',
+    marginVertical: 12,
+  },
+  shareCardStreak: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#3e2c13',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  shareCardTagline: {
+    fontSize: 13,
+    color: '#7b5e3b',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  shareCardCount: {
+    fontSize: 14,
+    color: '#3e2c13',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  shareCardSpacer: {
+    height: 16,
+  },
+  shareCardUrl: {
+    fontSize: 12,
+    color: '#b8a98c',
+    letterSpacing: 0.8,
+    textAlign: 'center',
+  },
+
+  // Modal action buttons
+  modalActions: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+    marginBottom: 12,
+  },
+  shareButton: {
+    flex: 1,
+    backgroundColor: '#e67e22',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: '#7b5e3b',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  modalCloseButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+  },
+  modalCloseText: {
+    color: '#b8a98c',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
