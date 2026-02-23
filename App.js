@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import OnboardingScreen from './screens/OnboardingScreen';
 import ContentScreen from './screens/ContentScreen';
+import PricingScreen from './screens/PricingScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,6 +30,18 @@ export default function App() {
       <Stack.Navigator initialRouteName={isSignedIn ? "Content" : "Onboarding"}>
         <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Content" component={ContentScreen} options={{ headerShown: false }} />
+        <Stack.Screen
+          name="Pricing"
+          component={PricingScreen}
+          options={{
+            headerShown: true,
+            title: 'Open Beta',
+            headerStyle: { backgroundColor: '#f9f6f1' },
+            headerTintColor: '#7b5e3b',
+            headerShadowVisible: false,
+            headerBackTitle: 'Back',
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
