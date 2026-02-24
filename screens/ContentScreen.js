@@ -212,15 +212,30 @@ export default function ContentScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
 
-            {/* Share Card Preview */}
+            {/* Share Card Preview - Concept 6 Style */}
             <View style={styles.shareCard}>
-              <Text style={styles.shareCardBrand}>🔥 ReadStreak</Text>
-              <View style={styles.shareCardDivider} />
-              <Text style={styles.shareCardStreak}>🔥 {streak}-DAY STREAK 🔥</Text>
-              <Text style={styles.shareCardTagline}>You've built a reading habit!</Text>
-              <View style={styles.shareCardDivider} />
-              <Text style={styles.shareCardCount}>You've read {readCount} times this week</Text>
-              <View style={styles.shareCardSpacer} />
+              {/* Header with logo */}
+              <View style={styles.shareCardHeader}>
+                <View style={styles.shareCardLogo}>
+                  <Text style={styles.shareCardLogoText}>📚</Text>
+                </View>
+                <Text style={styles.shareCardBrand}>ReadStreak</Text>
+              </View>
+              
+              {/* Week label */}
+              <Text style={styles.shareCardWeekLabel}>This Week</Text>
+              
+              {/* Big stat number */}
+              <Text style={styles.shareCardBigStat}>{readCount}</Text>
+              <Text style={styles.shareCardStatLabel}>reading sessions</Text>
+              
+              {/* Streak badge */}
+              <View style={styles.shareCardStreakBadge}>
+                <Text style={styles.shareCardStreakFire}>🔥</Text>
+                <Text style={styles.shareCardStreakText}>{streak}-day streak</Text>
+              </View>
+              
+              {/* Footer */}
               <Text style={styles.shareCardUrl}>readstreak.app</Text>
             </View>
 
@@ -433,57 +448,91 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
 
-  // Share Card
+  // Share Card - Concept 6 Style
   shareCard: {
     width: '100%',
-    backgroundColor: '#fff8ee',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: '#FAF7F2', // cream
+    borderRadius: 24,
+    padding: 28,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#e67e22',
     marginBottom: 20,
+    shadowColor: '#2C1810',
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
+  shareCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 20,
+  },
+  shareCardLogo: {
+    width: 36,
+    height: 36,
+    backgroundColor: '#C4A484', // latte
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareCardLogoText: {
+    fontSize: 18,
   },
   shareCardBrand: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#e67e22',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  shareCardDivider: {
-    width: '80%',
-    height: 1,
-    backgroundColor: '#f0d9b5',
-    marginVertical: 12,
-  },
-  shareCardStreak: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#3e2c13',
-    textAlign: 'center',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  shareCardTagline: {
-    fontSize: 13,
-    color: '#7b5e3b',
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  shareCardCount: {
-    fontSize: 14,
-    color: '#3e2c13',
     fontWeight: '600',
-    textAlign: 'center',
+    color: '#2C1810', // espresso
+    letterSpacing: 0.3,
   },
-  shareCardSpacer: {
-    height: 16,
+  shareCardWeekLabel: {
+    fontSize: 18,
+    color: '#5C4F42', // pencil
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  shareCardBigStat: {
+    fontSize: 72,
+    fontWeight: '300',
+    color: '#2C1810', // espresso
+    lineHeight: 80,
+    marginBottom: 4,
+  },
+  shareCardStatLabel: {
+    fontSize: 16,
+    color: '#6B5B54', // text-muted
+    marginBottom: 24,
+  },
+  shareCardStreakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    backgroundColor: '#FFFDF9', // paper
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#5C4F42', // pencil
+    shadowColor: '#C4A484', // latte shadow
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    shadowOffset: { width: 3, height: 3 },
+    elevation: 3,
+    marginBottom: 20,
+  },
+  shareCardStreakFire: {
+    fontSize: 22,
+  },
+  shareCardStreakText: {
+    fontSize: 20,
+    color: '#2C1810', // espresso
+    fontWeight: '500',
+    fontStyle: 'italic',
   },
   shareCardUrl: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#b8a98c',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
     textAlign: 'center',
   },
 
