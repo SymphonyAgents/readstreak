@@ -110,18 +110,42 @@ export default function LogReadingModal({ visible, onClose, bookTitle, onSave })
 
   const intervalRef = useRef(null);
 
-  // Resume timer if it was already running
+  // On modal open: resume running timer OR auto-start if Time tab is active
   useEffect(() => {
     if (!visible) return;
-    AsyncStorage.getItem(TIMER_START_KEY).then((stored) => {
+    AsyncStorage.getItem(TIMER_START_KEY).then(async (stored) => {
       if (stored) {
+        // Resume existing timer
         const ts = parseInt(stored, 10);
         setStartTimestamp(ts);
         setElapsedMs(Date.now() - ts);
         setTimerState('running');
+      } else if (tab === 'time') {
+        // Auto-start when opening on Time tab with no prior session
+        const now = Date.now();
+        setStartTimestamp(now);
+        setElapsedMs(0);
+        setTimerState('running');
+        await AsyncStorage.setItem(TIMER_START_KEY, String(now));
+        const notifId = await sendTimerStartNotification();
+        if (notifId) await AsyncStorage.setItem(NOTIFICATION_ID_KEY, notifId);
       }
     });
   }, [visible]);
+
+  // Auto-start when switching TO Time tab (if idle)
+  useEffect(() => {
+    if (!visible || tab !== 'time' || timerState !== 'idle') return;
+    (async () => {
+      const now = Date.now();
+      setStartTimestamp(now);
+      setElapsedMs(0);
+      setTimerState('running');
+      await AsyncStorage.setItem(TIMER_START_KEY, String(now));
+      const notifId = await sendTimerStartNotification();
+      if (notifId) await AsyncStorage.setItem(NOTIFICATION_ID_KEY, notifId);
+    })();
+  }, [tab]);
 
   // Tick interval
   useEffect(() => {
@@ -255,12 +279,7 @@ export default function LogReadingModal({ visible, onClose, bookTitle, onSave })
             <View style={styles.tabContent}>
 
               {timerState === 'idle' && (
-                <>
-                  <Text style={styles.timerDisplayZero}>0:00</Text>
-                  <TouchableOpacity style={styles.startBtn} onPress={handleStartTimer}>
-                    <Text style={styles.startBtnText}>▶  Start Timer</Text>
-                  </TouchableOpacity>
-                </>
+                <Text style={styles.timerDisplayZero}>0:00</Text>
               )}
 
               {timerState === 'running' && (
