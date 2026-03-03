@@ -14,9 +14,8 @@ export default function App() {
 
   useEffect(() => {
     const checkSignIn = async () => {
-      const token = await AsyncStorage.getItem('user_token');
-      // DEV: default to signed in so ContentScreen loads directly for review
-      setIsSignedIn(token ? !!token : true);
+      // DEV: always signed in on web so ContentScreen loads directly
+      setIsSignedIn(true);
     };
     checkSignIn();
   }, []);
