@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import LogReadingModal from '../components/LogReadingModal';
 import { Dimensions } from 'react-native';
 
 const screenHeight = Dimensions.get('window').height;
@@ -46,6 +47,8 @@ export default function ContentScreen() {
   const [recNote, setRecNote] = useState('');
   const [thanks, setThanks] = useState(false);
   const [showRecommend, setShowRecommend] = useState(false);
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [lastLoggedTime, setLastLoggedTime] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -121,6 +124,14 @@ export default function ContentScreen() {
         <Text style={styles.counter}>You've read {readCount} times this week</Text>
       </View>
 
+      {/* Log Reading Button */}
+      <TouchableOpacity
+        style={styles.logReadingButton}
+        onPress={() => setShowLogModal(true)}
+      >
+        <Text style={styles.logReadingButtonText}>📖  Log Reading</Text>
+      </TouchableOpacity>
+
       {/* Recommend Section */}
       <View style={styles.recommendSection}>
         {!showRecommend ? (
@@ -171,6 +182,15 @@ export default function ContentScreen() {
           </>
         )}
       </View>
+      {/* Log Reading Modal */}
+      <LogReadingModal
+        visible={showLogModal}
+        onClose={() => setShowLogModal(false)}
+        onSave={(data) => {
+          setLastLoggedTime(data);
+          setShowLogModal(false);
+        }}
+      />
     </View>
   );
 }
@@ -304,6 +324,20 @@ const styles = StyleSheet.create({
     color: '#7b5e3b',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  logReadingButton: {
+    backgroundColor: '#6d9e79',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginHorizontal: 0,
+    marginBottom: 16,
+  },
+  logReadingButtonText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 16,
   },
   thanks: {
     color: '#e67e22',
