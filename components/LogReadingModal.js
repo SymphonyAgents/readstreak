@@ -110,42 +110,18 @@ export default function LogReadingModal({ visible, onClose, bookTitle, onSave })
 
   const intervalRef = useRef(null);
 
-  // On modal open: resume running timer OR auto-start if Time tab is active
+  // Resume timer if it was already running when modal opens
   useEffect(() => {
     if (!visible) return;
-    AsyncStorage.getItem(TIMER_START_KEY).then(async (stored) => {
+    AsyncStorage.getItem(TIMER_START_KEY).then((stored) => {
       if (stored) {
-        // Resume existing timer
         const ts = parseInt(stored, 10);
         setStartTimestamp(ts);
         setElapsedMs(Date.now() - ts);
         setTimerState('running');
-      } else if (tab === 'time') {
-        // Auto-start when opening on Time tab with no prior session
-        const now = Date.now();
-        setStartTimestamp(now);
-        setElapsedMs(0);
-        setTimerState('running');
-        await AsyncStorage.setItem(TIMER_START_KEY, String(now));
-        const notifId = await sendTimerStartNotification();
-        if (notifId) await AsyncStorage.setItem(NOTIFICATION_ID_KEY, notifId);
       }
     });
   }, [visible]);
-
-  // Auto-start when switching TO Time tab (if idle)
-  useEffect(() => {
-    if (!visible || tab !== 'time' || timerState !== 'idle') return;
-    (async () => {
-      const now = Date.now();
-      setStartTimestamp(now);
-      setElapsedMs(0);
-      setTimerState('running');
-      await AsyncStorage.setItem(TIMER_START_KEY, String(now));
-      const notifId = await sendTimerStartNotification();
-      if (notifId) await AsyncStorage.setItem(NOTIFICATION_ID_KEY, notifId);
-    })();
-  }, [tab]);
 
   // Tick interval
   useEffect(() => {
@@ -182,6 +158,27 @@ export default function LogReadingModal({ visible, onClose, bookTitle, onSave })
     if (notifId) await AsyncStorage.setItem(NOTIFICATION_ID_KEY, notifId);
   };
 
+  const handlePauseTimer = async () => {
+    const wallElapsed = startTimestamp ? Date.now() - startTimestamp : elapsedMs;
+    clearInterval(intervalRef.current);
+    setElapsedMs(wallElapsed);
+    setStartTimestamp(null);
+    setTimerState('paused');
+    await AsyncStorage.removeItem(TIMER_START_KEY);
+    await cancelTimerNotification();
+  };
+
+  const handleResumeTimer = async () => {
+    // Adjust startTimestamp so elapsed time is preserved
+    const now = Date.now();
+    const adjustedStart = now - elapsedMs;
+    setStartTimestamp(adjustedStart);
+    setTimerState('running');
+    await AsyncStorage.setItem(TIMER_START_KEY, String(adjustedStart));
+    const notifId = await sendTimerStartNotification();
+    if (notifId) await AsyncStorage.setItem(NOTIFICATION_ID_KEY, notifId);
+  };
+
   const handleStopTimer = async () => {
     const wallElapsed = startTimestamp ? Date.now() - startTimestamp : elapsedMs;
     clearInterval(intervalRef.current);
@@ -209,9 +206,12 @@ export default function LogReadingModal({ visible, onClose, bookTitle, onSave })
 
   const handleSave = async () => {
     if (tab === 'time') {
-      if (totalElapsedMs === 0 && timerState === 'idle') {
-        Alert.alert('No time logged', 'Start the timer first or add time manually.');
+      if (totalElapsedMs === 0 && (timerState === 'idle' || timerState === 'paused')) {
+        Alert.alert('No time logged', 'Start the timer first.');
         return;
+      }
+      if (timerState === 'running') {
+        await handleStopTimer();
       }
       onSave && onSave({ type: 'time', ms: totalElapsedMs });
     } else {
@@ -279,15 +279,39 @@ export default function LogReadingModal({ visible, onClose, bookTitle, onSave })
             <View style={styles.tabContent}>
 
               {timerState === 'idle' && (
-                <Text style={styles.timerDisplayZero}>0:00</Text>
+                <>
+                  <Text style={styles.timerDisplayZero}>0:00</Text>
+                  <TouchableOpacity style={styles.startBtn} onPress={handleStartTimer}>
+                    <Text style={styles.startBtnText}>▶  Start</Text>
+                  </TouchableOpacity>
+                </>
               )}
 
               {timerState === 'running' && (
                 <>
                   <Text style={styles.timerDisplay}>{formatElapsed(elapsedMs)}</Text>
-                  <TouchableOpacity style={styles.stopBtn} onPress={handleStopTimer}>
-                    <Text style={styles.stopBtnText}>■  Stop</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                    <TouchableOpacity style={[styles.stopBtn, { flex: 1, backgroundColor: '#b8860b' }]} onPress={handlePauseTimer}>
+                      <Text style={styles.stopBtnText}>⏸  Pause</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.stopBtn, { flex: 1 }]} onPress={handleStopTimer}>
+                      <Text style={styles.stopBtnText}>■  Stop</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+
+              {timerState === 'paused' && (
+                <>
+                  <Text style={styles.timerDisplay}>{formatElapsed(elapsedMs)}</Text>
+                  <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                    <TouchableOpacity style={[styles.startBtn, { flex: 1 }]} onPress={handleResumeTimer}>
+                      <Text style={styles.startBtnText}>▶  Resume</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.stopBtn, { flex: 1 }]} onPress={handleStopTimer}>
+                      <Text style={styles.stopBtnText}>■  Stop</Text>
+                    </TouchableOpacity>
+                  </View>
                 </>
               )}
 
