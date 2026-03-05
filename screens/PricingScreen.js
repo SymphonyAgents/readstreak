@@ -43,7 +43,7 @@ const PREMIUM_FEATURES = [
   { icon: '⭐', label: 'Everything in Free', desc: 'All the features you already love, plus more' },
 ];
 
-export default function PricingScreen() {
+export default function PricingScreen({ navigation }) {
   const [selectedPlan, setSelectedPlan] = useState('premium');
 
   const [fontsLoaded] = useFonts({
@@ -60,19 +60,13 @@ export default function PricingScreen() {
   const isPH = false; // TODO: detect locale via expo-localization
 
   const handleSubscribe = () => {
-    // TODO: Wire to SymphPay subscription create-with-payment flow
-    const link = isPH ? PREMIUM_SUB_LINK_PHP : PREMIUM_SUB_LINK_USD;
-    Linking.openURL(link).catch(() =>
-      Alert.alert('Coming soon', 'Payment is being set up. Check back shortly!')
-    );
+    // Navigate to SymphPay checkout screen
+    navigation.navigate('Checkout', { planType: 'premium' });
   };
 
   const handleBuyFreeze = (forcePhp = false) => {
-    // TODO: Wire to SymphPay one-time payment flow
-    const link = forcePhp ? FREEZE_LINK_PHP : FREEZE_LINK_USD;
-    Linking.openURL(link).catch(() =>
-      Alert.alert('Coming soon', 'Payment is being set up. Check back shortly!')
-    );
+    const msg = forcePhp ? 'One-time streak freeze — P49\n\nPayment coming soon!' : 'One-time streak freeze — $0.99\n\nPayment coming soon!';
+    Alert.alert('Streak Freeze', msg, [{ text: 'OK' }]);
   };
 
   return (

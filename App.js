@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import OnboardingScreen from './screens/OnboardingScreen';
 import ContentScreen from './screens/ContentScreen';
 import PricingScreen from './screens/PricingScreen';
+import CheckoutScreen from './screens/CheckoutScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,6 +34,18 @@ export default function App() {
           options={{
             headerShown: true,
             title: 'Plans & Pricing',
+            headerStyle: { backgroundColor: '#f9f6f1' },
+            headerTintColor: '#7b5e3b',
+            headerShadowVisible: false,
+            headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen
+          name="Checkout"
+          component={CheckoutScreen}
+          options={{
+            headerShown: true,
+            title: 'Subscribe',
             headerStyle: { backgroundColor: '#f9f6f1' },
             headerTintColor: '#7b5e3b',
             headerShadowVisible: false,
