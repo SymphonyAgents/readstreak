@@ -60,7 +60,7 @@ function getFormattedDate() {
   return now.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
 }
 
-export default function ContentScreen() {
+export default function ContentScreen({ navigation }) {
   const [readCount, setReadCount] = useState(0);
   const [streak, setStreak] = useState(3);
 
@@ -257,6 +257,15 @@ export default function ContentScreen() {
             </>
           )}
         </View>
+
+        {/* ── Premium Upsell Banner ─────────────────────────────────────────── */}
+        <TactileButton
+          style={styles.premiumBanner}
+          onPress={() => navigation.navigate('Pricing')}
+        >
+          <Text style={styles.premiumBannerText}>✦ Go Premium — protect your streak</Text>
+          <Text style={styles.premiumBannerSub}>₱99/mo · 2 freezes + rest days →</Text>
+        </TactileButton>
       </ScrollView>
     </View>
   );
@@ -408,4 +417,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+
+  // ── Premium Banner ──────────────────────────────────────────────────────────
+  premiumBanner: {
+    backgroundColor: '#fff3e0',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderWidth: 1.5,
+    borderColor: '#f0c070',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  premiumBannerText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#e67e22',
+    marginBottom: 2,
+  },
+  premiumBannerSub: {
+    fontSize: 12,
+    color: '#b8a98c',
+  },
+
 });
