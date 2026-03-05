@@ -20,7 +20,7 @@ export default function App() {
     checkSignIn();
   }, []);
 
-  if (isSignedIn === null) return null; // or a loading spinner
+  if (isSignedIn === null) return null;
 
   return (
     <NavigationContainer>
@@ -32,7 +32,7 @@ export default function App() {
           component={PricingScreen}
           options={{
             headerShown: true,
-            title: 'Open Beta',
+            title: 'Plans & Pricing',
             headerStyle: { backgroundColor: '#f9f6f1' },
             headerTintColor: '#7b5e3b',
             headerShadowVisible: false,
