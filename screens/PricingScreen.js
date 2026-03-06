@@ -99,16 +99,19 @@ export default function PricingScreen({ navigation }) {
 
   const handleBuyFreeze = async (forcePhp = false) => {
     const url = forcePhp ? FREEZE_LINK_PHP : FREEZE_LINK_USD;
+    // Set pending state FIRST so the UI updates even if the link open fails
+    setFreezePending(true);
     try {
       if (Platform.OS === 'web') {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        // Use window.open without feature flags — avoids PWA in-place navigation
+        // that 'noopener,noreferrer' can trigger in standalone mode
+        window.open(url, '_blank');
       } else {
         await Linking.openURL(url);
       }
     } catch (e) {
-      // URL may be placeholder — still show the confirm flow
+      // Placeholder URL or deep link failed — pending state still shows confirm flow
     }
-    setFreezePending(true);
   };
 
   const handleFreezeConfirm = async () => {
@@ -128,19 +131,27 @@ export default function PricingScreen({ navigation }) {
     const url = 'https://www.buymeacoffee.com/readstreak';
     try {
       if (Platform.OS === 'web') {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        window.open(url, '_blank');
         // On web we can't detect app return — show thank you immediately after tap
         setCoffeeBought(true);
         await AsyncStorage.setItem('has_bought_coffee', 'true');
       } else {
         await Linking.openURL(url);
-        // On native: wait for app to return to foreground, then show thank you
+        // On native: in-app browsers (SFSafariViewController / Chrome Custom Tabs)
+        // keep the app ACTIVE — AppState background transition never fires.
+        // Show a manual confirm button instead (same pattern as freeze flow).
         setCoffeePending(true);
       }
     } catch (e) {
       setCoffeeBought(true);
       await AsyncStorage.setItem('has_bought_coffee', 'true');
     }
+  };
+
+  const handleCoffeeConfirm = async () => {
+    setCoffeePending(false);
+    setCoffeeBought(true);
+    await AsyncStorage.setItem('has_bought_coffee', 'true');
   };
 
   return (
@@ -342,6 +353,26 @@ export default function PricingScreen({ navigation }) {
               You're the reason we keep building. Seriously — thank you. 🙏
             </Text>
           </>
+        ) : coffeePending ? (
+          <>
+            <Text style={styles.coffeeEmoji}>☕</Text>
+            <Text style={[styles.coffeeTitle, { fontFamily: headingFont }]}>
+              Did you grab a coffee?
+            </Text>
+            <Text style={[styles.coffeeTagline, { fontFamily: caveatFont }]}>
+              Tap below once you've bought it — we'll show our thanks! 🙏
+            </Text>
+            <TouchableOpacity
+              style={styles.coffeeConfirmBtn}
+              onPress={handleCoffeeConfirm}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.coffeeConfirmBtnText}>☕ Yes, I bought a coffee!</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setCoffeePending(false)}>
+              <Text style={styles.coffeeCancelText}>Not yet</Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <>
             <Text style={styles.coffeeEmoji}>☕</Text>
@@ -439,6 +470,9 @@ const styles = StyleSheet.create({
   coffeeTagline: { fontSize: 17, color: '#7b5e3b', textAlign: 'center', marginBottom: 18, lineHeight: 24 },
   coffeeBtn: { backgroundColor: '#e67e22', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28, alignItems: 'center', shadowColor: '#e67e22', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   coffeeBtnText: { fontSize: 16, fontWeight: '800', color: '#ffffff' },
+  coffeeConfirmBtn: { backgroundColor: '#1e3a5f', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center', marginTop: 8, marginBottom: 10, width: '100%' },
+  coffeeConfirmBtnText: { fontSize: 15, fontWeight: '700', color: '#ffffff' },
+  coffeeCancelText: { fontSize: 13, color: '#c8b89a', textAlign: 'center', marginTop: 4 },
 
   footer: { marginTop: 32, fontSize: 15, color: '#c8b89a', textAlign: 'center', lineHeight: 22 },
 });
