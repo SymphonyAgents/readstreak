@@ -1,5 +1,5 @@
 // screens/PricingScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
   Linking,
   Platform,
   Alert,
+  AppState,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import {
   Fraunces_700Bold,
@@ -45,6 +47,11 @@ const PREMIUM_FEATURES = [
 
 export default function PricingScreen({ navigation }) {
   const [selectedPlan, setSelectedPlan] = useState('premium');
+  const [freezePending, setFreezePending] = useState(false); // waiting for user to confirm payment
+  const [freezeSuccess, setFreezeSuccess] = useState(false); // freeze just awarded
+  const [coffeeBought, setCoffeeBought] = useState(false);
+  const [coffeePending, setCoffeePending] = useState(false); // native: opened BMAC, waiting for return
+  const appStateRef = useRef(AppState.currentState);
 
   const [fontsLoaded] = useFonts({
     Fraunces_700Bold,
@@ -53,6 +60,33 @@ export default function PricingScreen({ navigation }) {
     Caveat_600SemiBold,
   });
 
+  useEffect(() => {
+    // Load coffee state
+    AsyncStorage.getItem('has_bought_coffee').then(val => {
+      if (val === 'true') setCoffeeBought(true);
+    });
+  }, []);
+
+  // When app returns to foreground after opening Stripe/BMAC link
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', async nextState => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextState === 'active'
+      ) {
+        if (coffeePending) {
+          // User returned from BMAC — show thank you
+          setCoffeePending(false);
+          setCoffeeBought(true);
+          await AsyncStorage.setItem('has_bought_coffee', 'true');
+        }
+        // freezePending: handled by confirm button (user taps it manually)
+      }
+      appStateRef.current = nextState;
+    });
+    return () => sub.remove();
+  }, [freezePending, coffeePending]);
+
   const headingFont = fontsLoaded ? 'Fraunces_700Bold' : undefined;
   const caveatFont = fontsLoaded ? 'Caveat_600SemiBold' : undefined;
   const caveatRegular = fontsLoaded ? 'Caveat_400Regular' : undefined;
@@ -60,13 +94,53 @@ export default function PricingScreen({ navigation }) {
   const isPH = false; // TODO: detect locale via expo-localization
 
   const handleSubscribe = () => {
-    // Navigate to SymphPay checkout screen
     navigation.navigate('Checkout', { planType: 'premium' });
   };
 
-  const handleBuyFreeze = (forcePhp = false) => {
-    const msg = forcePhp ? 'One-time streak freeze — P49\n\nPayment coming soon!' : 'One-time streak freeze — $0.99\n\nPayment coming soon!';
-    Alert.alert('Streak Freeze', msg, [{ text: 'OK' }]);
+  const handleBuyFreeze = async (forcePhp = false) => {
+    const url = forcePhp ? FREEZE_LINK_PHP : FREEZE_LINK_USD;
+    try {
+      if (Platform.OS === 'web') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        await Linking.openURL(url);
+      }
+    } catch (e) {
+      // URL may be placeholder — still show the confirm flow
+    }
+    setFreezePending(true);
+  };
+
+  const handleFreezeConfirm = async () => {
+    // Award the freeze
+    const current = await AsyncStorage.getItem('streak_freezes');
+    const count = current ? parseInt(current) : 0;
+    await AsyncStorage.setItem('streak_freezes', String(count + 1));
+    setFreezePending(false);
+    setFreezeSuccess(true);
+    // Navigate to Content after short delay
+    setTimeout(() => {
+      navigation.navigate('Main');
+    }, 2000);
+  };
+
+  const handleBuyCoffee = async () => {
+    const url = 'https://www.buymeacoffee.com/readstreak';
+    try {
+      if (Platform.OS === 'web') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        // On web we can't detect app return — show thank you immediately after tap
+        setCoffeeBought(true);
+        await AsyncStorage.setItem('has_bought_coffee', 'true');
+      } else {
+        await Linking.openURL(url);
+        // On native: wait for app to return to foreground, then show thank you
+        setCoffeePending(true);
+      }
+    } catch (e) {
+      setCoffeeBought(true);
+      await AsyncStorage.setItem('has_bought_coffee', 'true');
+    }
   };
 
   return (
@@ -189,46 +263,103 @@ export default function PricingScreen({ navigation }) {
 
       {/* ── One-Time Streak Freeze ── */}
       <View style={styles.freezeCard}>
-        <Text style={styles.freezeEmoji}>❄️</Text>
+        <Text style={styles.freezeEmoji}>{freezeSuccess ? '🎉' : '❄️'}</Text>
         <Text style={[styles.freezeTitle, { fontFamily: headingFont }]}>
-          One-time streak freeze
-        </Text>
-        <Text style={[styles.freezeTagline, { fontFamily: caveatFont }]}>
-          Not ready to subscribe? Grab a freeze when you need it.
-        </Text>
-        <Text style={styles.freezeDesc}>
-          Life gets busy. A streak freeze lets you skip a day without losing your streak — no subscription required.
+          {freezeSuccess ? 'Freeze acquired!' : 'One-time streak freeze'}
         </Text>
 
-        <View style={styles.freezeButtons}>
-          <TouchableOpacity
-            style={[styles.freezeBtn, styles.freezeBtnPhp]}
-            onPress={() => handleBuyFreeze(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.freezeBtnFlag}>🇵🇭</Text>
-            <View>
-              <Text style={styles.freezeBtnPrice}>₱49</Text>
-              <Text style={styles.freezeBtnLabel}>Philippines</Text>
+        {freezeSuccess ? (
+          <Text style={[styles.freezeTagline, { fontFamily: caveatFont, color: '#27ae60' }]}>
+            Your streak is protected. Go read something! 🔥
+          </Text>
+        ) : freezePending ? (
+          <>
+            <Text style={[styles.freezeTagline, { fontFamily: caveatFont }]}>
+              Complete your payment, then tap below 👇
+            </Text>
+            <TouchableOpacity
+              style={styles.freezeConfirmBtn}
+              onPress={handleFreezeConfirm}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.freezeConfirmBtnText}>✅ I've completed my payment</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setFreezePending(false)}>
+              <Text style={styles.freezeCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.freezeTagline, { fontFamily: caveatFont }]}>
+              Not ready to subscribe? Grab a freeze when you need it.
+            </Text>
+            <Text style={styles.freezeDesc}>
+              Life gets busy. A streak freeze lets you skip a day without losing your streak — no subscription required.
+            </Text>
+
+            <View style={styles.freezeButtons}>
+              <TouchableOpacity
+                style={[styles.freezeBtn, styles.freezeBtnPhp]}
+                onPress={() => handleBuyFreeze(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.freezeBtnFlag}>🇵🇭</Text>
+                <View>
+                  <Text style={styles.freezeBtnPrice}>₱49</Text>
+                  <Text style={styles.freezeBtnLabel}>Philippines</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.freezeBtn, styles.freezeBtnUsd]}
+                onPress={() => handleBuyFreeze(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.freezeBtnFlag}>🌏</Text>
+                <View>
+                  <Text style={styles.freezeBtnPrice}>$0.99</Text>
+                  <Text style={styles.freezeBtnLabel}>International</Text>
+                </View>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.freezeBtn, styles.freezeBtnUsd]}
-            onPress={() => handleBuyFreeze(false)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.freezeBtnFlag}>🌏</Text>
-            <View>
-              <Text style={styles.freezeBtnPrice}>$0.99</Text>
-              <Text style={styles.freezeBtnLabel}>International</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.freezeDisclaimer}>
+              One-time purchase · No subscription · Never expires
+            </Text>
+          </>
+        )}
+      </View>
 
-        <Text style={styles.freezeDisclaimer}>
-          One-time purchase · No subscription · Never expires
-        </Text>
+      {/* ── Buy us a coffee ── */}
+      <View style={styles.coffeeCard}>
+        {coffeeBought ? (
+          <>
+            <Text style={styles.coffeeEmoji}>💛</Text>
+            <Text style={[styles.coffeeTitle, { fontFamily: headingFont }]}>
+              Thank you so much!
+            </Text>
+            <Text style={[styles.coffeeTagline, { fontFamily: caveatFont }]}>
+              You're the reason we keep building. Seriously — thank you. 🙏
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.coffeeEmoji}>☕</Text>
+            <Text style={[styles.coffeeTitle, { fontFamily: headingFont }]}>
+              Buy us a coffee
+            </Text>
+            <Text style={[styles.coffeeTagline, { fontFamily: caveatFont }]}>
+              ReadStreak is made with love by a tiny team. If it's made you read more, you can fuel the next feature. ☕
+            </Text>
+            <TouchableOpacity
+              style={styles.coffeeBtn}
+              onPress={handleBuyCoffee}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.coffeeBtnText}>☕ Buy us a coffee</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {/* ── Footer ── */}
@@ -298,6 +429,16 @@ const styles = StyleSheet.create({
   freezeBtnPrice: { fontSize: 18, fontWeight: '800', color: '#1e3a5f' },
   freezeBtnLabel: { fontSize: 11, color: '#4a6fa5', fontWeight: '600', marginTop: 1 },
   freezeDisclaimer: { fontSize: 11, color: '#8aabcf', textAlign: 'center', letterSpacing: 0.3 },
+  freezeConfirmBtn: { backgroundColor: '#1e3a5f', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center', marginTop: 8, marginBottom: 10, width: '100%' },
+  freezeConfirmBtnText: { fontSize: 15, fontWeight: '700', color: '#ffffff' },
+  freezeCancelText: { fontSize: 13, color: '#8aabcf', textAlign: 'center', marginTop: 4 },
+
+  coffeeCard: { backgroundColor: '#fffbf0', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: '#f5d89a', marginTop: 20, shadowColor: '#e67e22', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  coffeeEmoji: { fontSize: 36, marginBottom: 8 },
+  coffeeTitle: { fontSize: 22, fontWeight: '700', color: '#3e2c13', marginBottom: 6, textAlign: 'center' },
+  coffeeTagline: { fontSize: 17, color: '#7b5e3b', textAlign: 'center', marginBottom: 18, lineHeight: 24 },
+  coffeeBtn: { backgroundColor: '#e67e22', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28, alignItems: 'center', shadowColor: '#e67e22', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  coffeeBtnText: { fontSize: 16, fontWeight: '800', color: '#ffffff' },
 
   footer: { marginTop: 32, fontSize: 15, color: '#c8b89a', textAlign: 'center', lineHeight: 22 },
 });
