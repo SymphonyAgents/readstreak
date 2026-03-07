@@ -20,7 +20,14 @@ import {
 import { Caveat_400Regular, Caveat_600SemiBold } from '@expo-google-fonts/caveat';
 
 // ─── Payment Links ────────────────────────────────────────────────────────────
-// TODO: Replace with real SymphPay / Stripe checkout links once merchant is set up
+// TODO: Replace with real Stripe Payment Links once created in Stripe dashboard.
+//
+// IMPORTANT: When creating Stripe Payment Links, set the success URL to:
+//   Freeze PHP/USD: https://readstreak.dev.apps.symph.co/?payment=freeze-success
+//   Coffee:         https://readstreak.dev.apps.symph.co/?payment=coffee-success
+//
+// This is what awards the freeze and shows the thank-you toast in the app.
+//
 // Premium subscription — ₱99/month (PH) | $1.99/month (international)
 const PREMIUM_SUB_LINK_PHP = 'https://buy.stripe.com/readstreak-premium-php-99'; // placeholder
 const PREMIUM_SUB_LINK_USD = 'https://buy.stripe.com/readstreak-premium-usd-199'; // placeholder
@@ -99,18 +106,18 @@ export default function PricingScreen({ navigation }) {
 
   const handleBuyFreeze = async (forcePhp = false) => {
     const url = forcePhp ? FREEZE_LINK_PHP : FREEZE_LINK_USD;
-    // Set pending state FIRST so the UI updates even if the link open fails
-    setFreezePending(true);
-    try {
-      if (Platform.OS === 'web') {
-        // Use window.open without feature flags — avoids PWA in-place navigation
-        // that 'noopener,noreferrer' can trigger in standalone mode
-        window.open(url, '_blank');
-      } else {
+    if (Platform.OS === 'web') {
+      // Same-tab redirect so Stripe can redirect back to /?payment=freeze-success
+      // The App.js URL handler will award the freeze on return
+      window.location.href = url;
+    } else {
+      // Native: open URL then show manual confirm (in-app browser stays active)
+      setFreezePending(true);
+      try {
         await Linking.openURL(url);
+      } catch (e) {
+        // Placeholder URL failed — confirm flow still shows
       }
-    } catch (e) {
-      // Placeholder URL or deep link failed — pending state still shows confirm flow
     }
   };
 

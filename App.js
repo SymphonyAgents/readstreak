@@ -53,13 +53,42 @@ function TabNavigator() {
 
 export default function App() {
   const [isSignedIn, setIsSignedIn] = useState(null);
+  const [initialRoute, setInitialRoute] = useState('Main');
 
   useEffect(() => {
-    const checkSignIn = async () => {
-      // DEV: always signed in on web so ContentScreen loads directly
+    const init = async () => {
+      // ── Handle Stripe success redirect on web ──────────────────────────────
+      if (typeof window !== 'undefined' && window.location && window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        const payment = params.get('payment');
+
+        if (payment === 'freeze-success') {
+          // Award the freeze
+          try {
+            const val = await AsyncStorage.getItem('streak_freezes');
+            const count = val ? parseInt(val) : 0;
+            await AsyncStorage.setItem('streak_freezes', String(count + 1));
+            await AsyncStorage.setItem('freeze_just_bought', 'true');
+          } catch (e) { /* ignore */ }
+          // Clean the URL so it doesn't re-trigger on refresh
+          window.history.replaceState({}, '', '/');
+        } else if (payment === 'coffee-success') {
+          try {
+            await AsyncStorage.setItem('has_bought_coffee', 'true');
+            await AsyncStorage.setItem('coffee_just_bought', 'true');
+          } catch (e) { /* ignore */ }
+          window.history.replaceState({}, '', '/');
+        } else if (payment === 'failed' || payment === 'cancelled') {
+          // Just clean the URL — user stays on current screen
+          window.history.replaceState({}, '', '/');
+        }
+      }
+
+      // DEV: always signed in on web so ContentScreen always loads
       setIsSignedIn(true);
     };
-    checkSignIn();
+
+    init();
   }, []);
 
   if (isSignedIn === null) return null;

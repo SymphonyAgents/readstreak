@@ -15,7 +15,7 @@
  * 10. 🎉 Confetti Burst  — confetti on milestone reads (×5)     (ConfettiBurst)
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,9 +25,10 @@ import {
   ScrollView,
   Linking,
   TouchableOpacity,
-
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 import {
   AnimatedArticleRow,
@@ -74,6 +75,11 @@ export default function ContentScreen({ navigation }) {
   const [streak, setStreak] = useState(3);
   const [freezeCount, setFreezeCount] = useState(0);
 
+  // ─── Purchase toast notifications ─────────────────────────────────────────
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
   // Recommendation form state
   const [recUrl, setRecUrl] = useState('');
   const [recNote, setRecNote] = useState('');
@@ -93,26 +99,54 @@ export default function ContentScreen({ navigation }) {
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const lastMilestone = useRef(0);
 
-  // ─── Load persisted data ───────────────────────────────────────────────────
-  useEffect(() => {
-    const loadData = async () => {
-      const count = await AsyncStorage.getItem('read_count');
-      setReadCount(count ? parseInt(count) : 0);
+  // ─── Show toast helper ─────────────────────────────────────────────────────
+  const showToast = useCallback((message) => {
+    setToastMessage(message);
+    setToastVisible(true);
+    toastOpacity.setValue(0);
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2800),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start(() => setToastVisible(false));
+  }, [toastOpacity]);
 
-      const streakVal = await AsyncStorage.getItem('reading_streak');
-      setStreak(streakVal ? parseInt(streakVal) : 3);
+  // ─── Load persisted data (useFocusEffect refreshes on every nav back) ─────
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        const count = await AsyncStorage.getItem('read_count');
+        setReadCount(count ? parseInt(count) : 0);
 
-      const freezeVal = await AsyncStorage.getItem('streak_freezes');
-      setFreezeCount(freezeVal ? parseInt(freezeVal) : 0);
+        const streakVal = await AsyncStorage.getItem('reading_streak');
+        setStreak(streakVal ? parseInt(streakVal) : 3);
 
-      // Load shelf
-      const shelfRaw = await AsyncStorage.getItem(SHELF_KEY);
-      if (shelfRaw) {
-        try { setShelf(JSON.parse(shelfRaw)); } catch (e) {}
-      }
-    };
-    loadData();
-  }, []);
+        const freezeVal = await AsyncStorage.getItem('streak_freezes');
+        setFreezeCount(freezeVal ? parseInt(freezeVal) : 0);
+
+        // Load shelf
+        const shelfRaw = await AsyncStorage.getItem(SHELF_KEY);
+        if (shelfRaw) {
+          try { setShelf(JSON.parse(shelfRaw)); } catch (e) {}
+        }
+
+        // ── Check for purchase reward flags ────────────────────────────────
+        const froze = await AsyncStorage.getItem('freeze_just_bought');
+        if (froze === 'true') {
+          await AsyncStorage.removeItem('freeze_just_bought');
+          // Small delay so UI is ready
+          setTimeout(() => showToast('❄️ Freeze added! Your streak is protected.'), 400);
+        }
+
+        const coffee = await AsyncStorage.getItem('coffee_just_bought');
+        if (coffee === 'true') {
+          await AsyncStorage.removeItem('coffee_just_bought');
+          setTimeout(() => showToast('☕ Thanks for the coffee! You rock 🙏'), 400);
+        }
+      };
+      loadData();
+    }, [showToast])
+  );
 
   // ─── Shelf helpers ─────────────────────────────────────────────────────────
   const BOOK_COLORS = ['#fff3e0', '#e8f5e9', '#ede7f6', '#e3f2fd', '#fce4ec', '#f3e5f5'];
@@ -185,6 +219,13 @@ export default function ContentScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {/* ── Purchase toast notification ────────────────────────────────────── */}
+      {toastVisible && (
+        <Animated.View style={[styles.purchaseToast, { opacity: toastOpacity }]}>
+          <Text style={styles.purchaseToastText}>{toastMessage}</Text>
+        </Animated.View>
+      )}
+
       {/* ── Interaction #8: Bookmark Slide overlay ─────────────────────────── */}
       <BookmarkSlide triggerKey={bookmarkTrigger} />
 
@@ -380,6 +421,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9f6f1',
+  },
+  purchaseToast: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
+    right: 16,
+    zIndex: 999,
+    backgroundColor: '#e8f5ff',
+    borderWidth: 1.5,
+    borderColor: '#90c8f0',
+    borderRadius: 14,
+    padding: 16,
+    shadowColor: '#4a90d9',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  purchaseToastText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1e3a5f',
+    textAlign: 'center',
   },
   scrollContent: {
     padding: 20,
