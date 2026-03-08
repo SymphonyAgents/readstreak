@@ -24,6 +24,8 @@ import {
   Alert,
   ScrollView,
   Linking,
+  TouchableOpacity,
+
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -55,6 +57,13 @@ const ARTICLES = [
   },
 ];
 
+const SHELF_KEY = 'readstreak_shelf_v1';
+const INITIAL_SHELF = [
+  { id: '1', title: 'Atomic Habits', author: 'James Clear', emoji: '⚛️', color: '#fff3e0' },
+  { id: '2', title: 'Deep Work', author: 'Cal Newport', emoji: '🧠', color: '#e8f5e9' },
+  { id: '3', title: 'The Alchemist', author: 'Paulo Coelho', emoji: '✨', color: '#ede7f6' },
+];
+
 function getFormattedDate() {
   const now = new Date();
   return now.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
@@ -69,6 +78,12 @@ export default function ContentScreen({ navigation }) {
   const [recNote, setRecNote] = useState('');
   const [thanks, setThanks] = useState(false);
   const [showRecommend, setShowRecommend] = useState(false);
+
+  // ─── Shelf state ──────────────────────────────────────────────────────────
+  const [shelf, setShelf] = useState(INITIAL_SHELF);
+  const [showAddBook, setShowAddBook] = useState(false);
+  const [newBookTitle, setNewBookTitle] = useState('');
+  const [newBookAuthor, setNewBookAuthor] = useState('');
 
   // Interaction #8 — Bookmark Slide trigger
   const [bookmarkTrigger, setBookmarkTrigger] = useState(0);
@@ -85,9 +100,37 @@ export default function ContentScreen({ navigation }) {
 
       const streakVal = await AsyncStorage.getItem('reading_streak');
       setStreak(streakVal ? parseInt(streakVal) : 3);
+
+      // Load shelf
+      const shelfRaw = await AsyncStorage.getItem(SHELF_KEY);
+      if (shelfRaw) {
+        try { setShelf(JSON.parse(shelfRaw)); } catch (e) {}
+      }
     };
     loadData();
   }, []);
+
+  // ─── Shelf helpers ─────────────────────────────────────────────────────────
+  const BOOK_COLORS = ['#fff3e0', '#e8f5e9', '#ede7f6', '#e3f2fd', '#fce4ec', '#f3e5f5'];
+  const BOOK_EMOJIS = ['📗', '📘', '📙', '📕', '📓', '📔'];
+
+  const addBook = async () => {
+    if (!newBookTitle.trim()) return;
+    const idx = shelf.length % BOOK_COLORS.length;
+    const newBook = {
+      id: `b-${Date.now()}`,
+      title: newBookTitle.trim(),
+      author: newBookAuthor.trim() || 'Unknown',
+      emoji: BOOK_EMOJIS[idx],
+      color: BOOK_COLORS[idx],
+    };
+    const updated = [...shelf, newBook];
+    setShelf(updated);
+    await AsyncStorage.setItem(SHELF_KEY, JSON.stringify(updated));
+    setNewBookTitle('');
+    setNewBookAuthor('');
+    setShowAddBook(false);
+  };
 
   // ─── Confetti milestone check (interaction #10) ────────────────────────────
   useEffect(() => {
@@ -167,6 +210,59 @@ export default function ContentScreen({ navigation }) {
               onPress={openArticle}
             />
           ))}
+        </View>
+
+        {/* ── My Shelf Section ─────────────────────────────────────────────── */}
+        <View style={styles.shelfSection}>
+          <View style={styles.shelfHeader}>
+            <Text style={styles.shelfTitle}>📚 My Shelf</Text>
+            <TouchableOpacity onPress={() => setShowAddBook(!showAddBook)} style={styles.addBookBtn}>
+              <Text style={styles.addBookBtnText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Add Book inline form */}
+          {showAddBook && (
+            <View style={styles.addBookForm}>
+              <TextInput
+                style={styles.bookInput}
+                placeholder="Book title"
+                placeholderTextColor="#b8a98c"
+                value={newBookTitle}
+                onChangeText={setNewBookTitle}
+              />
+              <TextInput
+                style={styles.bookInput}
+                placeholder="Author (optional)"
+                placeholderTextColor="#b8a98c"
+                value={newBookAuthor}
+                onChangeText={setNewBookAuthor}
+              />
+              <TouchableOpacity style={styles.addBookSaveBtn} onPress={addBook}>
+                <Text style={styles.addBookSaveBtnText}>Add to Shelf</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Horizontal book scroll — scrolls naturally no matter how many books */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.shelfScrollContent}
+          >
+            {shelf.map((book) => (
+              <View key={book.id} style={[styles.bookCard, { backgroundColor: book.color }]}>
+                <Text style={styles.bookEmoji}>{book.emoji}</Text>
+                <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
+                <Text style={styles.bookAuthor} numberOfLines={1}>{book.author}</Text>
+              </View>
+            ))}
+            {shelf.length === 0 && (
+              <View style={styles.shelfEmpty}>
+                <Text style={styles.shelfEmptyText}>Add your first book! ☝️</Text>
+              </View>
+            )}
+          </ScrollView>
         </View>
 
         {/* ── Streak + Progress Section ─────────────────────────────────────── */}
@@ -303,6 +399,144 @@ const styles = StyleSheet.create({
   articlesList: {
     marginTop: 4,
   },
+
+  // ── Shelf ─────────────────────────────────────────────────────────────────
+  shelfSection: {
+    marginTop: 22,
+    marginBottom: 4,
+  },
+  shelfHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  shelfTitle: { fontSize: 15, fontWeight: '700', color: '#3d2c1e' },
+  shelfHeaderRight: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  viewAllBtn: {
+    backgroundColor: '#f5f0e8',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#e0d8c3',
+  },
+  viewAllText: { fontSize: 12, color: '#7b5e3b', fontWeight: '600' },
+  addBookBtn: {
+    backgroundColor: '#e67e22',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  addBookBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  // Add book form
+  addBookForm: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e0d8c3',
+  },
+  bookInput: {
+    borderWidth: 1.5,
+    borderColor: '#e0d8c3',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: '#3d2c1e',
+    marginBottom: 8,
+    backgroundColor: '#faf8f4',
+  },
+  addBookFormActions: { flexDirection: 'row', gap: 8 },
+  addBookSaveBtn: {
+    flex: 1,
+    backgroundColor: '#e67e22',
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  addBookSaveBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  addBookCancelBtn: {
+    flex: 1,
+    backgroundColor: '#e0d8c3',
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  addBookCancelBtnText: { color: '#7b5e3b', fontWeight: '600', fontSize: 13 },
+
+  // Shelf horizontal scroll
+  shelfScrollWrapper: { position: 'relative' },
+  shelfScrollContent: { paddingRight: 20, gap: 12 },
+  bookCard: {
+    width: 110,
+    borderRadius: 12,
+    padding: 12,
+    justifyContent: 'flex-end',
+    minHeight: 130,
+    shadowColor: '#7b5e3b',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  bookEmoji: { fontSize: 32, marginBottom: 8 },
+  bookTitle: { fontSize: 12, fontWeight: '700', color: '#3d2c1e', marginBottom: 2 },
+  bookAuthor: { fontSize: 10, color: '#7b5e3b' },
+  shelfEmpty: {
+    width: 200,
+    height: 130,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f0e8',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e0d8c3',
+    borderStyle: 'dashed',
+  },
+  shelfEmptyText: { color: '#9a845e', fontSize: 13 },
+  shelfFadeRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 32,
+    backgroundColor: 'transparent',
+    // React Native doesn't support CSS gradients natively, so use a simple overlay
+  },
+
+  // View All Modal
+  modalContainer: { flex: 1, backgroundColor: '#f9f6f1' },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 56,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0d8c3',
+  },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#3d2c1e' },
+  modalClose: { fontSize: 14, color: '#e67e22', fontWeight: '600' },
+  bookListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    shadowColor: '#7b5e3b',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  bookListEmoji: { fontSize: 28, marginRight: 14 },
+  bookListTitle: { fontSize: 14, fontWeight: '700', color: '#3d2c1e', marginBottom: 2 },
+  bookListAuthor: { fontSize: 12, color: '#7b5e3b' },
 
   // ── Streak / Progress ─────────────────────────────────────────────────────────
   centerSection: {
