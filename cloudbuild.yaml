@@ -92,10 +92,6 @@ steps:
         echo "Service deployed to asia-southeast1"
     waitFor: ['deploy-asia-southeast1']
 
-images:
-  - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
-  - 'gcr.io/$PROJECT_ID/readstreak:latest'
-
 timeout: '1800s'
 
 options:
