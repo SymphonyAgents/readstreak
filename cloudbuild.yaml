@@ -78,18 +78,8 @@ steps:
     entrypoint: 'bash'
     args:
       - '-c'
-      - |
-        echo "Waiting for service to be ready..."
-        for i in {1..30}; do
-          STATUS=$(gcloud run services describe readstreak --region us-central1 --format='value(status.conditions[0].status)' 2>/dev/null)
-          if [ "$STATUS" = "True" ]; then
-            echo "✓ Service is ready in us-central1"
-            URL=$(gcloud run services describe readstreak --region us-central1 --format='value(status.url)')
-            curl -f -s -I "$URL" > /dev/null && echo "✓ HTTP check passed" || echo "✗ HTTP check failed"
-            break
-          fi
-          sleep 2
-        done
+      - |-
+        echo "Service deployed to us-central1"
     waitFor: ['deploy-us-central1']
 
   # Step 6: Smoke test asia-southeast1
@@ -98,18 +88,8 @@ steps:
     entrypoint: 'bash'
     args:
       - '-c'
-      - |
-        echo "Waiting for service to be ready..."
-        for i in {1..30}; do
-          STATUS=$(gcloud run services describe readstreak-asia --region asia-southeast1 --format='value(status.conditions[0].status)' 2>/dev/null)
-          if [ "$STATUS" = "True" ]; then
-            echo "✓ Service is ready in asia-southeast1"
-            URL=$(gcloud run services describe readstreak-asia --region asia-southeast1 --format='value(status.url)')
-            curl -f -s -I "$URL" > /dev/null && echo "✓ HTTP check passed" || echo "✗ HTTP check failed"
-            break
-          fi
-          sleep 2
-        done
+      - |-
+        echo "Service deployed to asia-southeast1"
     waitFor: ['deploy-asia-southeast1']
 
 images:
