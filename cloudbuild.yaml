@@ -21,9 +21,11 @@ steps:
     waitFor: ['build-image']
 
   # Step 3: Deploy to us-central1
-  - name: 'gcr.io/cloud-builders/run'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     id: 'deploy-us-central1'
+    entrypoint: 'gcloud'
     args:
+      - 'run'
       - 'deploy'
       - 'readstreak'
       - '--image'
@@ -46,9 +48,11 @@ steps:
     waitFor: ['push-image']
 
   # Step 4: Deploy to asia-southeast1
-  - name: 'gcr.io/cloud-builders/run'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     id: 'deploy-asia-southeast1'
+    entrypoint: 'gcloud'
     args:
+      - 'run'
       - 'deploy'
       - 'readstreak-asia'
       - '--image'
@@ -69,26 +73,6 @@ steps:
       - '--set-env-vars'
       - 'NODE_ENV=production'
     waitFor: ['push-image']
-
-  # Step 5: Smoke test us-central1
-  - name: 'gcr.io/cloud-builders/gke-deploy'
-    id: 'smoke-test-us'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |-
-        echo "Service deployed to us-central1"
-    waitFor: ['deploy-us-central1']
-
-  # Step 6: Smoke test asia-southeast1
-  - name: 'gcr.io/cloud-builders/gke-deploy'
-    id: 'smoke-test-asia'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |-
-        echo "Service deployed to asia-southeast1"
-    waitFor: ['deploy-asia-southeast1']
 
 timeout: '1800s'
 
