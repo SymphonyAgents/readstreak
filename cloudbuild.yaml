@@ -1,0 +1,127 @@
+# Cloud Build configuration for ReadStreak Expo web app
+# Builds Docker image and deploys to Cloud Run in multiple regions
+
+steps:
+  # Step 1: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/readstreak:latest'
+      - '.'
+    waitFor: ['-']
+
+  # Step 2: Push image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
+    waitFor: ['build-image']
+
+  # Step 3: Deploy to us-central1
+  - name: 'gcr.io/cloud-builders/run'
+    id: 'deploy-us-central1'
+    args:
+      - 'deploy'
+      - 'readstreak'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--timeout'
+      - '300s'
+      - '--port'
+      - '3000'
+      - '--set-env-vars'
+      - 'NODE_ENV=production'
+    waitFor: ['push-image']
+
+  # Step 4: Deploy to asia-southeast1
+  - name: 'gcr.io/cloud-builders/run'
+    id: 'deploy-asia-southeast1'
+    args:
+      - 'deploy'
+      - 'readstreak-asia'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
+      - '--region'
+      - 'asia-southeast1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--timeout'
+      - '300s'
+      - '--port'
+      - '3000'
+      - '--set-env-vars'
+      - 'NODE_ENV=production'
+    waitFor: ['push-image']
+
+  # Step 5: Smoke test us-central1
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    id: 'smoke-test-us'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Waiting for service to be ready..."
+        for i in {1..30}; do
+          STATUS=$(gcloud run services describe readstreak --region us-central1 --format='value(status.conditions[0].status)' 2>/dev/null)
+          if [ "$STATUS" = "True" ]; then
+            echo "✓ Service is ready in us-central1"
+            URL=$(gcloud run services describe readstreak --region us-central1 --format='value(status.url)')
+            curl -f -s -I "$URL" > /dev/null && echo "✓ HTTP check passed" || echo "✗ HTTP check failed"
+            break
+          fi
+          sleep 2
+        done
+    waitFor: ['deploy-us-central1']
+
+  # Step 6: Smoke test asia-southeast1
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    id: 'smoke-test-asia'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Waiting for service to be ready..."
+        for i in {1..30}; do
+          STATUS=$(gcloud run services describe readstreak-asia --region asia-southeast1 --format='value(status.conditions[0].status)' 2>/dev/null)
+          if [ "$STATUS" = "True" ]; then
+            echo "✓ Service is ready in asia-southeast1"
+            URL=$(gcloud run services describe readstreak-asia --region asia-southeast1 --format='value(status.url)')
+            curl -f -s -I "$URL" > /dev/null && echo "✓ HTTP check passed" || echo "✗ HTTP check failed"
+            break
+          fi
+          sleep 2
+        done
+    waitFor: ['deploy-asia-southeast1']
+
+images:
+  - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/readstreak:latest'
+
+substitutions:
+  _REGION_PRIMARY: 'us-central1'
+  _REGION_SECONDARY: 'asia-southeast1'
+
+timeout: '1800s'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'N1_HIGHCPU_8'
