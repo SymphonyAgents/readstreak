@@ -96,10 +96,6 @@ images:
   - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
   - 'gcr.io/$PROJECT_ID/readstreak:latest'
 
-substitutions:
-  _REGION_PRIMARY: 'us-central1'
-  _REGION_SECONDARY: 'asia-southeast1'
-
 timeout: '1800s'
 
 options:
