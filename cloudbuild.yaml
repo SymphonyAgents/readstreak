@@ -8,8 +8,6 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
-      - '-t'
       - 'gcr.io/$PROJECT_ID/readstreak:latest'
       - '.'
     waitFor: ['-']
@@ -19,7 +17,7 @@ steps:
     id: 'push-image'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/readstreak:latest'
     waitFor: ['build-image']
 
   # Step 3: Deploy to us-central1
@@ -29,7 +27,7 @@ steps:
       - 'deploy'
       - 'readstreak'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/readstreak:latest'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -54,7 +52,7 @@ steps:
       - 'deploy'
       - 'readstreak-asia'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/readstreak:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/readstreak:latest'
       - '--region'
       - 'asia-southeast1'
       - '--platform'
